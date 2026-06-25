@@ -1,0 +1,194 @@
+<!DOCTYPE html><html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ابرباراں</title><link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&family=Playfair+Display&display=swap" rel="stylesheet"><script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script><style>
+body {
+    margin: 0;
+    font-family: 'Playfair Display', serif;
+    color: white;
+    background: url('https://images.unsplash.com/photo-1534796636912-3b95b3ab5986');
+    background-size: cover;
+    background-attachment: fixed;
+}
+.overlay {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.65);
+}
+.container {
+    position: relative;
+    text-align: center;
+    padding: 40px;
+}
+.card {
+    background: rgba(255,255,255,0.08);
+    padding: 15px;
+    margin: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+button {
+    margin: 5px;
+    padding: 8px;
+    border-radius: 8px;
+    border: none;
+    background: #334155;
+    color: white;
+}
+input {
+    padding: 8px;
+    margin: 5px;
+    border-radius: 8px;
+    border: none;
+}
+.modal {
+    display:none;
+    position:fixed;
+    top:0;
+    width:100%;
+    height:100%;
+    background:black;
+    padding:20px;
+}
+</style></head><body><div class="overlay"></div><div class="container"><h1 id="title">ابرباراں</h1>
+<p id="subtitle">سحر | من از قلم</p><button onclick="toggleLang()">EN / UR</button>
+
+<hr><!-- LOGIN --><div id="loginBox">
+<input type="email" id="email" placeholder="Email">
+<input type="password" id="password" placeholder="Password">
+<button onclick="login()">Login</button>
+</div><button onclick="logout()" id="logoutBtn" style="display:none;">Logout</button>
+
+<hr><h2 id="novelsText">پیشکش</h2><select id="novelSelect">
+<option>خاموش بارش</option>
+<option>میرا پہلا ناول</option>
+</select><input type="file" id="fileInput" accept=".txt" style="display:none;">
+<button onclick="uploadEpisode()" id="uploadBtn" style="display:none;">Upload Episode</button><div id="episodeList"></div><hr><h2 id="contactText">رابطہ</h2>
+<p>seharadam17@gmail.com</p></div><div class="modal" id="modal">
+<h2 id="mTitle"></h2>
+<p id="mText"></p>
+<button onclick="closeNovel()">Close</button>
+</div><script>
+
+// 🔥 PASTE YOUR FIREBASE CONFIG HERE
+const firebaseConfig = {
+  apiKey: "AIzaSyCTlnm8fumIpTuwpaoaM07h1jWjlLhs9_I",
+  authDomain: "abrebaraan.firebaseapp.com",
+  projectId: "abrebaraan",
+  storageBucket: "abrebaraan.firebasestorage.app",
+  messagingSenderId: "260043642647",
+  appId: "1:260043642647:web:0242bfbf73f2923a4ec952",
+  measurementId: "G-TJ1EV2PPXY"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+let lang = false;
+
+/* LANGUAGE */
+function toggleLang(){
+    lang = !lang;
+    title.innerText = lang ? "A b r - e - B a a r a n" : "ابرباراں";
+    subtitle.innerText = lang ? "Sehar | From the Pen" : "سحر | من از قلم";
+    novelsText.innerText = lang ? "Recommendations" : "پیشکش";
+    contactText.innerText = lang ? "Contact" : "رابطہ";
+}
+
+/* LOGIN */
+function login(){
+    let email = document.getElementById("email").value;
+    let password = document.getElementById("password").value;
+
+    auth.signInWithEmailAndPassword(email, password);
+}
+
+/* LOGOUT */
+function logout(){
+    auth.signOut();
+}
+
+/* AUTH STATE */
+auth.onAuthStateChanged(user => {
+    if(user){
+        uploadBtn.style.display = "inline-block";
+        fileInput.style.display = "inline-block";
+        logoutBtn.style.display = "inline-block";
+        loginBox.style.display = "none";
+    } else {
+        uploadBtn.style.display = "none";
+        fileInput.style.display = "none";
+        logoutBtn.style.display = "none";
+        loginBox.style.display = "block";
+    }
+});
+
+/* UPLOAD */
+function uploadEpisode(){
+    let file = fileInput.files[0];
+    let novel = novelSelect.value;
+
+    let reader = new FileReader();
+
+    reader.onload = function(e){
+        db.collection("episodes").add({
+            novel: novel,
+            title: file.name,
+            text: e.target.result
+        });
+    };
+
+    reader.readAsText(file);
+}
+
+/* LOAD */
+db.collection("episodes").onSnapshot(snapshot => {
+    let container = episodeList;
+    container.innerHTML = "";
+
+    let data = {};
+
+    snapshot.forEach(doc => {
+        let ep = doc.data();
+
+        if(!data[ep.novel]){
+            data[ep.novel] = [];
+        }
+
+        data[ep.novel].push(ep);
+    });
+
+    for(let novel in data){
+        let h = document.createElement("h3");
+        h.innerText = novel;
+        container.appendChild(h);
+
+        data[novel].forEach(ep => {
+            let div = document.createElement("div");
+            div.className = "card";
+            div.innerText = ep.title;
+
+            div.onclick = function(){
+                openEpisode(ep.title, ep.text);
+            };
+
+            container.appendChild(div);
+        });
+    }
+});
+
+function openEpisode(title, text){
+    modal.style.display = "block";
+    mTitle.innerText = title;
+    mText.innerText = text;
+}
+
+function closeNovel(){
+    modal.style.display = "none";
+}
+
+</script></body>
+</html>
